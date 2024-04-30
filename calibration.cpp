@@ -879,16 +879,16 @@ void adcVsRadius(std::string indir, const::std::string& outfile, const:: std::st
                 continue;
             }
 
-            
+            /*
             // Apply the chamber level fit function to the adc counts
             float pol4_calibrated_ADC = ADC_counts->at(n) / \
             polynomial(4, drift_radius->at(n), chamber_polynomials[chamber_label]);
-            
+            */
 
-            /*
+            
             // Apply the global fit function to the adc counts
             float pol4_calibrated_ADC = ADC_counts->at(n) / polynomial(4, drift_radius->at(n), globalPol4Params);
-            */
+            
 
             // Check if we have a new muon
             if (trk_link->at(n) != muon_link) {
@@ -898,9 +898,9 @@ void adcVsRadius(std::string indir, const::std::string& outfile, const:: std::st
                 current_author = authors->at(muon_link);
                 muon_pt = pts->at(muon_link);
 
-                // Cut on empty/noise hits, outlier hits, and author || !isInValidRadius(drift_radius->at(n))
+                // Cut on empty/noise hits, outlier hits, and author drift radius)
                 if ((*ADC_counts)[n] < 50 || (*hit_type)[n] > 60 || \
-                checkAuthor(current_author) == 0 ) {
+                checkAuthor(current_author) == 0 || isInValidRadius(drift_radius->at(n))) {
                     continue;
                 }
                 else { // Fill the histogram and scatter plot if the above conditions are satisfied
@@ -937,7 +937,7 @@ void adcVsRadius(std::string indir, const::std::string& outfile, const:: std::st
                 
             // Now check the same cuts for hits when the muon hasn't changed    || !isInValidRadius(drift_radius->at(n))
             } else if ((*ADC_counts)[n] < 50 || (*hit_type)[n] > 60 || \
-            checkAuthor(current_author) == 0 ) {
+            checkAuthor(current_author) == 0 || isInValidRadius(drift_radius->at(n))) {
                 continue;
             } else { // Fill the histogram and station hit map if the above conditions are satisfied
                 hcalpol4->Fill(drift_radius->at(n), pol4_calibrated_ADC);
