@@ -5,9 +5,9 @@ CXXFLAGS = -Wall -Wextra -std=c++11
 ROOTFLAGS = $(shell root-config --cflags)
 ROOTLIBS = $(shell root-config --libs)
 
-SRC = ismail_code.cpp
+SRC = calibration.cpp
 OBJ = $(SRC:.cpp=.o)
-EXE = ismail_code
+EXE = calibration
 
 all: $(EXE)
 
