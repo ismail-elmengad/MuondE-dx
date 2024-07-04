@@ -1,4 +1,4 @@
-# Makefile for ismail_code.cpp
+# Makefile for calibration.cpp
 
 CXX = g++
 CXXFLAGS = -Wall -Wextra -std=c++11
