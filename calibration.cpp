@@ -79,7 +79,7 @@ std::vector<int> overlaps(std::set<int> stations) {
 // A function to test if a muon event is a full track extending through all barrel layers
 bool isFullTrack(std::map<int, std::vector<float>> hitMap) {
     if ((!hitMap[0].empty() || !hitMap[1].empty()) && (!hitMap[2].empty() || !hitMap[3].empty()) \
-    && (!hitMap[4].empty() || !hitMap[4].empty())) {
+    && (!hitMap[4].empty() || !hitMap[5].empty())) {
         return true;
     }
     else {return false;}
@@ -616,11 +616,11 @@ void adcVsRadius(std::string indir, const::std::string& outfile, const:: std::st
         int muon_link = 0;
         int author = authors->at(muon_link);
         float muon_pt = pts->at(muon_link);
-        float muon_eta = pts->at(muon_link);
+        float muon_eta = etas->at(muon_link);
         
         // Loop through all hits in the entry
         for (unsigned long n = 0; n < ADC_counts->size(); n++) {
-            // Get the index station as a string and translated it to the text label
+            // Get the index station as a string and translate it to the text label
             // If it isn't in the barrel skip it
             std::string parsed_station_index = std::to_string(station_index->at(n));
             std::string translated_station_index;
@@ -636,11 +636,13 @@ void adcVsRadius(std::string indir, const::std::string& outfile, const:: std::st
             int stationPhi = station_phi->at(n);
             std::string chamber_label = chamber_info[std::make_tuple(translated_station_index, stationEta, stationPhi)];
             
-            // Skip over sMDT data
+            /*
+            // Skip over sMDT data (Don't for simulated data)
             std::string sMDT = "BIS / Eta:7";
             if (chamber_label.rfind(sMDT, 0) == 0) {
                 continue;
             }
+            */
 
             // Check if we have a new muon
             if (trk_link->at(n) != muon_link) {
@@ -651,7 +653,7 @@ void adcVsRadius(std::string indir, const::std::string& outfile, const:: std::st
                 muon_eta = etas->at(muon_link);
 
                 // Cut on hits where ADC counts < 50, author, eta and pt
-                if (ADC_counts->at(n) < 50 || checkAuthor(author) == 0 || muon_pt < 5 || abs(muon_eta) < 1) {
+                if (ADC_counts->at(n) < 50 || hit_type->at(n) > 60  || checkAuthor(author) == 0 || muon_pt < 5 || abs(muon_eta) > 1) {
                     continue;
                 }
                 else {
@@ -667,7 +669,7 @@ void adcVsRadius(std::string indir, const::std::string& outfile, const:: std::st
                 }
             // Now check the same conditions for when it is not a new muon
             } else { 
-                if (ADC_counts->at(n) < 50 || checkAuthor(author) == 0 || muon_pt < 5 || abs(muon_eta) < 1) { continue; } 
+                if (ADC_counts->at(n) < 50 || checkAuthor(author) == 0 || muon_pt < 5 || abs(muon_eta) > 1) { continue; } 
                 else {
                 h->Fill(drift_radius->at(n), ADC_counts->at(n));
                 g1->AddPoint(drift_radius->at(n), ADC_counts->at(n));
@@ -926,6 +928,7 @@ void adcVsRadius(std::string indir, const::std::string& outfile, const:: std::st
     std::vector<float> track_phis;
     std::vector<float> track_etas;
 
+
     // Now do calibrations and record track(lets)
     std::cout << "\n\n\nCalibrating\n\n\n" << endl;
     for (Int_t i=0; i < nEntries; i++) {
@@ -933,7 +936,7 @@ void adcVsRadius(std::string indir, const::std::string& outfile, const:: std::st
         if (i % 10000 == 0) {
             std::cout << i << "/" << nEntries << " processed" << endl;
         }
-        
+
         // Get the event data
         chain.GetEntry(i);
 
@@ -977,16 +980,21 @@ void adcVsRadius(std::string indir, const::std::string& outfile, const:: std::st
 
 
             // Construct the chamber label
-            std::string chamber_label = chamber_info[std::make_tuple(translated_station_index, 
-            station_eta->at(n), station_phi->at(n))];
+            std::string chamber_label = chamber_info[std::make_tuple(translated_station_index, station_eta->at(n), station_phi->at(n))];
+            
+            // Skip chambers for which no polynomial was formed
+            if (chamber_polynomials.find(chamber_label) == chamber_polynomials.end()) { continue; } // SKip chambers without a polynomial
 
-            // Skip over sMDT data
-            std::string sMDT = "BIS / Eta:7";
-            if (chamber_label.rfind(sMDT, 0) == 0) {
+            /* Don't check for sMDTs in simulation data
+            std::string sMDT1 = "BIS / Eta:7";
+            std::string sMDT2 = "BIS / Eta:-7";
+            if (chamber_label.rfind(sMDT1, 0) == 0 || chamber_label.rfind(sMDT2, 0) == 0) {
+                cout << "drift radius is " << drift_radius->at(n) << endl;
                 continue;
             }
-            
-            // Apply the chamber level fit function to the adc counts
+            */
+
+            // Initialize the calibrated ADC
             float pol4_calibrated_ADC = ADC_counts->at(n) / polynomial(4, drift_radius->at(n), chamber_polynomials[chamber_label]);
             
             /*
@@ -1005,10 +1013,10 @@ void adcVsRadius(std::string indir, const::std::string& outfile, const:: std::st
                 muon_phi = phis->at(muon_link);
 
                 // Cut on empty/noise hits, outlier hits, and author drift radius)
-                if ((*ADC_counts)[n] < 50 || (*hit_type)[n] > 60 || checkAuthor(current_author) == 0 \
-                || !isInValidRadius(drift_radius->at(n)) || muon_pt < 5 || muon_eta < 1) {
+                if (ADC_counts->at(n) < 50 || hit_type->at(n) > 60 || checkAuthor(current_author) == 0 \
+                || muon_pt < 5 || abs(muon_eta) > 1 || !isInValidRadius(drift_radius->at(n))) {
                     continue;
-                } else { // Fill the histogram and scatter plot if the above conditions are satisfied
+                } else { // Fill the histogram and scatter plot if the above conditions are satisfied and calibrate the hit
                     hcalpol4->Fill(drift_radius->at(n), pol4_calibrated_ADC);
                 }
                 // Build the tracklet then compute the estimators. Also record tracklet pT
@@ -1039,8 +1047,8 @@ void adcVsRadius(std::string indir, const::std::string& outfile, const:: std::st
                 station_hit_map[static_cast<int>(station_index->at(n))].push_back(pol4_calibrated_ADC);
                 
             // Now check the same cuts for hits when the muon hasn't changed
-            } else if (checkAuthor(current_author) == 0 || (*ADC_counts)[n] < 50 || (*hit_type)[n] > 60 || \
-            !isInValidRadius(drift_radius->at(n)) || muon_pt < 5 || muon_eta < 1) {
+            } else if (checkAuthor(current_author) == 0 || ADC_counts->at(n) < 50 || hit_type->at(n) > 60 || \
+            !isInValidRadius(drift_radius->at(n)) || muon_pt < 5 || abs(muon_eta) > 1) {
                 continue;
             } else { // Fill the histogram and station hit map if the above conditions are satisfied
                 hcalpol4->Fill(drift_radius->at(n), pol4_calibrated_ADC);
